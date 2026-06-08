@@ -1,101 +1,86 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import re
+import json
 
-# ==========================================
-# 1. 初始化與網頁基本設定
-# ==========================================
-st.set_page_config(page_title="Gemini AI 智慧安全審查系統", layout="wide")
+# 設定網頁標題與寬版佈局
+st.set_page_config(page_title="元宇宙資安自動化審查系統", layout="wide")
+st.title("🛡️ AI 在元宇宙安全與隱私保護中的應用")
+st.subheader("CI/CD 管線自動化資安審查儀表板")
 
-st.title("🛡️ 基於大語言模型之 Jenkins+SonarQube 智慧化安全審查主控台")
-st.caption("結合 CI/CD 流程與 Gemini AI 的即時動態資安防禦平台")
-st.write("---")
+# ====================================================================
+# 🛠️ 填入你的 Jenkins 連線資訊 (免 Token 密碼直連版)
+# ====================================================================
+JENKINS_URL = "http://localhost:8080"
+JOB_NAME = "security_project"
+USER_NAME = "admin"
+# 👈 請在這裡直接填入你登入 Jenkins 網頁時使用的實體密碼
+USER_PASSWORD = "admin" 
 
-# 在網頁側邊欄讓使用者輸入金鑰，或是你們可以直接寫死在程式碼中方便上台展示
-# 註：上台前可以先去 Google AI Studio 申請免費的 API 金鑰
-with st.sidebar:
-    st.header("🔑 系統核心設定")
-    api_key = st.text_input("輸入 Gemini API Key：", type="password", value="")
-    st.info("提示：此金鑰用於即時驅動 Gemini AI 進行動態威脅建模與代碼重構。")
+def get_jenkins_latest_report():
+    try:
+        # 使用 /lastBuild/consoleText API 取得最新一次建置（#15）的主控台純文字日誌
+        api_url = f"{JENKINS_URL}/job/{JOB_NAME}/lastBuild/consoleText"
+        
+        # auth 參數直接傳入 (帳號, 密碼)，Jenkins 就會自動放行
+        response = requests.get(api_url, auth=(USER_NAME, USER_PASSWORD), timeout=10)
+        
+        if response.status_code == 200:
+            log_text = response.text
+            
+            # 使用正則表達式，在密密麻麻的日誌中，精準抓取符合 JSON 格式的 Gemini 回應區塊
+            json_match = re.search(r'\{.*"candidates".*\}', log_text, re.DOTALL)
+            
+            if json_match:
+                raw_json = json_match.group(0)
+                data = json.loads(raw_json)
+                
+                # 提取出 Gemini 的中文報告內文
+                report_text = data['candidates'][0]['content']['parts'][0]['text']
+                return report_text, "SUCCESS"
+            else:
+                return "❌ 連線成功，但無法在 Jenkins 日誌中解析出 Gemini JSON 報告。\n請確認 Jenkins 最新一次建置是否成功產出報告。", "WARNING"
+        elif response.status_code == 401 or response.status_code == 403:
+            return "❌ 帳號或密碼錯誤！請檢查 USER_PASSWORD 是否填寫正確。", "ERROR"
+        else:
+            return f"❌ 無法連線至 Jenkins API (狀態碼: {response.status_code})", "ERROR"
+            
+    except requests.exceptions.ConnectionError:
+        return "❌ 連線失敗！請確認您的 Jenkins 服務（localhost:8080）是否有正常開啟。", "ERROR"
+    except Exception as e:
+        return f"❌ 發生未知錯誤: {e}", "ERROR"
 
-# ==========================================
-# 2. 網頁版面配置 (1:1.5 左右分欄)
-# ==========================================
-col1, col2 = st.columns([1.2, 1.8])
+# ====================================================================
+# 🖥️ Streamlit 網頁前端 UI 排版
+# ====================================================================
+st.markdown("---")
+
+# 切分左右兩欄：左邊放控制台，右邊放壯觀的 AI 報告
+col1, col2 = st.columns([1, 2])
 
 with col1:
-    st.header("📊 CI/CD 程式碼輸入中心")
-    st.write("請在下方貼上需要審查的程式碼（支援任何語言）：")
+    st.info("### ⚙️ CI/CD 管線監控狀態")
+    st.write(f"**目標專案 (Job)：** `{JOB_NAME}`")
+    st.write(f"**Jenkins 伺服器：** `{JENKINS_URL}`")
+    st.write(f"**驗證模式：** `Basic Auth (帳號密碼直連)`")
     
-    # 讓使用者當場輸入或貼上程式碼的大框框
-    user_code = st.text_area(
-        "Code Editor", 
-        height=400, 
-        placeholder="例如貼上：\nimport os\ndef ping(ip):\n    os.system('ping ' + ip)"
-    )
-    
-    # 送出審查的按鈕
-    analyze_button = st.button("🚀 啟動 AI 智慧漏洞審查", use_container_width=True)
+    st.markdown(" ")
+    # 點擊按鈕手動強制同步最新狀況
+    if st.button("🔄 同步 Jenkins 最新審查報告", type="primary"):
+        st.toast("正在從 Jenkins 撈取最新數據...")
 
 with col2:
-    st.header("🤖 Gemini AI 智慧代碼審查助理")
+    st.markdown("### 🤖 同步自 Jenkins 的 AI 漏洞審查報告")
     
-    # 當使用者點擊按鈕時，觸發活的 AI 分析邏輯
-    if analyze_button:
-        if not api_key:
-            st.warning("⚠️ 請先在左側欄位輸入 Gemini API Key 才能啟動即時動態分析。")
-        elif not user_code.strip():
-            st.warning("⚠️ 請先在左側輸入或貼上任何程式碼。")
-        else:
-            with st.spinner("🔄 Gemini AI 正在深入分析程式碼架構、進行威脅建模..."):
-                try:
-                    # 設定 Gemini API
-                    genai.configure(api_key=api_key)
-                    
-                    # 使用最新的 gemini-1.5-flash 模型（速度最快，適合上台展示）
-                    model = genai.GenerativeModel('gemini-2.5-flash')
-                    
-                    # 這是我們下給 Gemini 的終極 Prompt 密技，強迫它吐出 Android Studio 風格的格式
-                    prompt = f"""
-                    你現在是一個資深的企業級 DevSecOps 安全專家與高階程式碼審查員。
-                    請針對以下使用者提供的程式碼進行深度的漏洞掃描與分析：
-                    
-                    ```
-                    {user_code}
-                    ```
-                    
-                    請嚴格按照以下繁體中文格式進行回覆，確保結構清晰，適合呈現在網頁 Dashboard 上：
-                    
-                    ### 🎯 綜合安全漏洞評等
-                    [請評估此程式碼的危險程度：極高/高/中/低，並給予一句總結]
-                    
-                    ---
-                    
-                    ### 📌 偵測到的致命缺陷與資安風險
-                    * **錯誤成因：** [簡短且直白地說明這個程式碼哪裡寫錯了，黑客會怎麼攻擊]
-                    
-                    ---
-                    
-                    ### 🛠️ Android Studio 風格：建議修改對照表
-                    
-                    ❌ **原始不安全程式碼：**
-                    ```
-                    [撈出原本最危險的那一兩行程式碼]
-                    ```
-                    
-                    ✅ **AI 建議重構程式碼：**
-                    ```
-                    [請直接給出修改好、最安全、最標準的程式碼，並加上註解說明原因]
-                    ```
-                    """
-                    
-                    # 呼叫模型生成回應
-                    response = model.generate_content(prompt)
-                    
-                    # 將活的 AI 回應直接渲染到網頁右側
-                    st.success("✨ AI 審查完成！報告已即時生成：")
-                    st.markdown(response.text)
-                    
-                except Exception as e:
-                    st.error(f"❌ 呼叫 Gemini API 時發生錯誤: {e}")
+    # 網頁載入時自動去撈取 Jenkins 資料
+    with st.spinner("正在從 Jenkins 遠端伺服器安全同步數據中..."):
+        report, status = get_jenkins_latest_report()
+        
+    if status == "SUCCESS":
+        st.success("✅ 成功對接 Jenkins CI/CD 管線！最新安全報告已同步。")
+        # Markdown 會自動把 \n 與 ** 轉換成漂亮的標題、粗體與清單，畫面會變得超級精美！
+        st.markdown(report)
+    elif status == "WARNING":
+        st.warning(report)
     else:
-        st.write("💡 等待左側管線提交程式碼... 點擊按鈕後 AI 將當場進行動態分析。")
+        st.error(report)
