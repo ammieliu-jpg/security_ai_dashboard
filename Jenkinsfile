@@ -8,13 +8,13 @@ pipeline {
             steps {
                 sh '''
                     echo "=== 開始讀取待審查程式碼 ==="
-                    # 將 review.py 或你想審查的原始碼內容轉成 JSON 安全格式
-                    # 如果你想審查特定檔案，可以把 review.py 改成你的目標檔案名稱
-                    CODE_CONTENT=$(cat review.py | sed 's/"/\\\\"/g' | sed ':a;N;$!ba;s/\\n/\\\\n/g')
+                    # 將 test.py 或你想審查的原始碼內容轉成 JSON 安全格式
+                    # 如果你想審查特定檔案，可以把 test.py 改成你的目標檔案名稱
+                    CODE_CONTENT=$(cat test.py | sed 's/"/\\\\"/g' | sed ':a;N;$!ba;s/\\n/\\\\n/g')
                     
                     echo "=== 正在發送請求至 Google Gemini API ==="
-                    # 直接使用 curl 呼叫 Gemini 1.5 Flash 官方最新 API 端點
-                    curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}" \\
+                    # 直接使用 curl 呼叫 Gemini 2.5 Flash 官方最新 API 端點
+                    curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \\
                          -H "Content-Type: application/json" \\
                          -d "{
                                \\"contents\\": [{
