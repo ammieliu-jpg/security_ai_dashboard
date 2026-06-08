@@ -1,19 +1,21 @@
 pipeline {
     agent any
+    tools {
+        // 讓 Jenkins 自動幫你載入剛剛設定的 Python3 環境
+        python 'Python3'
+    }
     environment {
-        // 這裡填入你之前在 Jenkins 設定的 Gemini API Key 憑證 ID
         GEMINI_API_KEY = credentials('gemini-api-key-id')
     }
     stages {
         stage('套件安裝') {
             steps {
-                // 確保環境有安裝必要的套件
-                sh 'pip install google-generativeai'
+                // 有了 Python 工具後，就能正常呼叫 pip 了
+                sh 'pip install --upgrade google-generativeai'
             }
         }
         stage('Gemini AI 程式碼審查') {
             steps {
-                // 執行你寫好的 Python 審查腳本
                 sh 'python review.py'
             }
         }
