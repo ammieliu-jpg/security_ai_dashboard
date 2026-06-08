@@ -52,7 +52,7 @@ with col2:
                     genai.configure(api_key=api_key)
                     
                     # 使用最新的 gemini-1.5-flash 模型（速度最快，適合上台展示）
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-2.5-flash')
                     
                     # 這是我們下給 Gemini 的終極 Prompt 密技，強迫它吐出 Android Studio 風格的格式
                     prompt = f"""
