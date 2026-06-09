@@ -3,14 +3,14 @@ import requests
 import re
 
 # 介面設定
-st.set_page_config(page_title="智慧資安審查系統", layout="wide")
+st.set_page_config(page_title="Gemini AI 智慧安全審查系統", layout="wide")
 st.title("🛡️ 智慧資安審查系統")
 
 # 設定 Jenkins 連線資訊 (請確認你的 Jenkins 設定)
 JENKINS_URL = "http://localhost:8080"
 JOB_NAME = "security_project"
 USER_NAME = "admin"
-USER_PASSWORD = "admin" 
+USER_PASSWORD = "password" 
 
 def fetch_report_from_jenkins():
     """只負責抓取 Jenkins Console 並提取報告，不執行 AI 呼叫"""
